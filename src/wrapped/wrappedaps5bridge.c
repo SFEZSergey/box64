@@ -17,6 +17,7 @@
 #include "x64emu.h"
 #include "callback.h"
 #include "debug.h"
+#include "elfloader.h"
 
 const char* aps5bridgeName = "libaps5bridge.so";
 #define LIBNAME aps5bridge
@@ -61,6 +62,13 @@ EXPORT uint64_t my_aps5b_callfd(x64emu_t* emu, void* fn, uint64_t a0, uint64_t a
 static uint64_t aps5b_x86call(uintptr_t fn, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
 {
     return RunFunctionFmt(fn, "UUUUUU", a0, a1, a2, a3, a4, a5);
+}
+
+// Native replacements of known hot functions for a module mapped without the ELF loader (tests).
+EXPORT void* my_aps5b_hotpatch(x64emu_t* emu, void* path, void* base)
+{
+    (void)emu;
+    return (void*)(uintptr_t)Aps5HotPatchModule((const char*)path, (uintptr_t)base);
 }
 
 EXPORT void* my_aps5b_x86caller(x64emu_t* emu)

@@ -478,6 +478,7 @@ set(ELFLOADER_SRC
     "${BOX64_ROOT}/src/steamwebhelper.c"
     "${BOX64_ROOT}/src/tools/bitutils.c"
     "${BOX64_ROOT}/src/tools/box64stack.c"
+    "${BOX64_ROOT}/src/tools/aps5hot.c"
     "${BOX64_ROOT}/src/tools/bridge.c"
     "${BOX64_ROOT}/src/tools/alternate.c"
     "${BOX64_ROOT}/src/tools/callback.c"

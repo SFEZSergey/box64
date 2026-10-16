@@ -612,6 +612,7 @@ int FinalizeLibrary(library_t* lib, lib_t* local_maplib, int bindnow, int deepbi
             printf_log(LOG_NONE, "Error: relocating Plt symbols in elf %s\n", lib->name);
             return 1;
         }
+        Aps5HotPatchElf(elf_header);
 #ifdef HAVE_TRACE
         if(trace_func) {
             int weak;

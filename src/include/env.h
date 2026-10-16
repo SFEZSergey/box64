@@ -41,6 +41,7 @@ extern char* ftrace_name;
     STRING(BOX64_ADDLIBS, addlibs, 0, 0)                                         \
     BOOLEAN(BOX64_AES, aes, 1, 1, 1)                                             \
     BOOLEAN(BOX64_ALLOWMISSINGLIBS, allow_missing_libs, 0, 0, 0)                 \
+    BOOLEAN(BOX64_APS5_NATIVE, aps5_native, 1, 0, 1)                             \
     STRING(BOX64_ARCH, arch, 0, 0)                                               \
     STRING(BOX64_ARGS, args, 0, 0)                                               \
     STRING(BOX64_BASH, bash, 0, 0)                                               \

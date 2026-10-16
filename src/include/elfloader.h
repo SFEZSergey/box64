@@ -79,6 +79,9 @@ void CreateMemorymapFile(box64context_t* context, int fd);
 void* GetDynamicSection(elfheader_t* h);
 void* GetLoadedDynamicSection(elfheader_t* h);
 void PatchLoadedDynamicSection(elfheader_t* h);
+// Native replacements for known hot functions of PS5 game modules (src/tools/aps5hot.c).
+void Aps5HotPatchElf(elfheader_t* h);
+int Aps5HotPatchModule(const char* path, uintptr_t delta);
 
 int ElfCheckIfUseTCMallocMinimal(elfheader_t* h);   // return 1 if tcmalloc is used
 

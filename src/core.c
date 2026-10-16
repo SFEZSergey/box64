@@ -1584,6 +1584,7 @@ int initialize(int argc, const char **argv, char** env, x64emu_t** emulator, elf
     }
     // and handle PLT
     RelocateElfPlt(my_context->maplib, NULL, 0, 0, elf_header);
+    Aps5HotPatchElf(elf_header);
     // deferred init
     setupTraceInit();
     RunDeferredElfInit(emu);
