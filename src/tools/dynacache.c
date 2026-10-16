@@ -223,7 +223,13 @@ char* MmaplistName(const char* filename, uint64_t dynarec_settings, const char* 
     // Where XXXXX is the hash of the full name
     // and YYYY is the Dynarec optim (in hex)
     static char mapname[4096];
-    snprintf(mapname, 4095-6, "%s-%" PRIx64 "-%u", filename, dynarec_settings, __ac_X31_hash_string(fullname));
+    // The module's mtime and size are part of the name hash: the cache was accepted by name, settings
+    // and length alone, so a rebuilt module of the same size reused code translated from the old one.
+    uint32_t hash = __ac_X31_hash_string(fullname);
+    struct stat st;
+    if(fullname && !stat(fullname, &st))
+        hash ^= (uint32_t)((uint64_t)st.st_mtime * 2654435761u) ^ (uint32_t)((uint64_t)st.st_size * 40503u);
+    snprintf(mapname, 4095-6, "%s-%" PRIx64 "-%u", filename, dynarec_settings, hash);
     strcat(mapname, ".box64");
     return mapname;
 }
@@ -268,17 +274,27 @@ int ReadDynaCache(const char* folder, const char* name, mapping_t* mapping, int 
 #define DYNACACHE_TMP_STALE_SECONDS 60
 #define DYNACACHE_HASH_INIT UINT64_C(0)
 
+// X31_hash_code picks the hardware CRC32 or a software hash by the detected CPU extensions, and the
+// cache can be read before they are detected: every cache file then failed its header checksum
+// ("Bad header checksum") and was deleted. The cache hash does not depend on the CPU: FNV-1a 64,
+// 8 bytes at a time.
 static uint64_t DynaCacheHash(uint64_t hash, const void* data, size_t size)
 {
     const uint8_t* p = data;
-    while(size) {
-        int len = (size>INT_MAX)?INT_MAX:(int)size;
-        uint32_t crc = X31_hash_code((void*)p, len);
-        hash ^= (uint64_t)crc + UINT64_C(0x9e3779b97f4a7c15) + (hash << 6) + (hash >> 2) + (uint64_t)len;
-        p += len;
-        size -= len;
+    uint64_t h = hash ^ UINT64_C(0xcbf29ce484222325);
+    while(size >= 8) {
+        uint64_t v;
+        memcpy(&v, p, 8);
+        h = (h ^ v) * UINT64_C(0x100000001b3);
+        p += 8;
+        size -= 8;
     }
-    return hash;
+    while(size) {
+        h = (h ^ *p) * UINT64_C(0x100000001b3);
+        ++p;
+        --size;
+    }
+    return h;
 }
 
 static size_t DynaCacheHeaderSize(const DynaCacheHeader_t* header)
@@ -1003,13 +1019,13 @@ void MmapDynaCache(mapping_t* mapping)
     const char* name = GetMmaplistName(mapping);
     if(!name) return;
     dynarec_log(LOG_DEBUG, "Looking for DynaCache %s in %s\n", name, folder);
-    int ret = ReadDynaCache(folder, name, mapping, 0);
+    int ret = ReadDynaCache(folder, name, mapping, BOX64ENV(dynarec_log) ? 1 : 0);
     if(ret && ret!=DCERR_NEXIST) {
         char filename[strlen(folder)+strlen(name)+1];
         strcpy(filename, folder);
         strcat(filename, name);
         if(!unlink(filename))
-            dynarec_log(LOG_INFO, "Removed invalid DynaCache %s\n", name);
+            dynarec_log(LOG_INFO, "Removed invalid DynaCache %s (error %d)\n", name, ret);
     }
 }
 #endif

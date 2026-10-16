@@ -8,7 +8,7 @@
 
 typedef void (*sighandler_t)(int);
 
-#ifdef ANDROID
+#if defined(ANDROID) && !defined(TERMUX)
 typedef struct x64_sigaction_s {
 	int sa_flags;
 	union {
@@ -16,6 +16,18 @@ typedef struct x64_sigaction_s {
 	  void (*_sa_sigaction)(int, siginfo_t *, void *);
 	} _u;
 	sigset_t sa_mask;
+	void (*sa_restorer)(void);
+} x64_sigaction_t;
+#elif defined(ANDROID)
+// bionic host running glibc x86_64 guests: glibc layout, sigset_t there is 128 bytes (bionic: 8)
+typedef struct x64_sigaction_s {
+	union {
+	  sighandler_t _sa_handler;
+	  void (*_sa_sigaction)(int, siginfo_t *, void *);
+	} _u;
+	sigset_t sa_mask;
+	uint64_t sa_mask_glibc_pad[15];
+	uint32_t sa_flags;
 	void (*sa_restorer)(void);
 } x64_sigaction_t;
 #else

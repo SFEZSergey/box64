@@ -284,8 +284,8 @@ static void applyCustomRules()
 
 #ifndef _WIN32
     if (box64env.dynarec_perf_map) {
-        char pathname[32];
-        snprintf(pathname, sizeof(pathname), "/tmp/perf-%d.map", getpid());
+        char pathname[4096];
+        snprintf(pathname, sizeof(pathname), "%s/perf-%d.map", getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp", getpid());
         SET_BOX64ENV(dynarec_perf_map_fd, open(pathname, O_CREAT | O_RDWR | O_APPEND, S_IRUSR | S_IWUSR));
     }
     if (box64env.emulated_libs && my_context) {

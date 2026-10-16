@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "library.h"
 #include "elfloader.h"
+#include "androidglibc.h"
 #include "bridge.h"
 #include "library_private.h"
 #include "khash.h"
@@ -1001,6 +1002,10 @@ static int getSymbolInSymbolMaps(library_t*lib, const char* name, int noweak, ui
                 symbol = GetNativeSymbolUnversioned(lib->w.lib, newname);
             }
             #endif
+            #if defined(ANDROID) || defined(TERMUX)
+            if(!symbol)
+                symbol = AndroidGlibcCompat(name);
+            #endif
             if(!symbol) {
                 printf_dump(LOG_INFO, "Warning, function %s not found in lib %s\n", name, lib->name);
                 return 0;
@@ -1070,6 +1075,10 @@ static int getSymbolInSymbolMaps(library_t*lib, const char* name, int noweak, ui
                     strcat(newname, name);
                     symbol = GetNativeSymbolUnversioned(lib->w.lib, newname);
                 }
+                #endif
+                #if defined(ANDROID) || defined(TERMUX)
+                if(!symbol)
+                    symbol = AndroidGlibcCompat(name);
                 #endif
                 if(!symbol) {
                     printf_dump(LOG_INFO, "Warning, function %s not found in lib %s\n", name, lib->name);

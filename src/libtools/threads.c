@@ -612,6 +612,40 @@ EXPORT int my_pthread_setattr_default_np(x64emu_t* emu, pthread_attr_t* attr)
 	PTHREAD_ATTR_UNALIGN(attr);
 	return ret;
 }
+#else
+// bionic: pthread_getattr_np exists, the *_default_np pair does not (default stack 2 MiB here).
+EXPORT int my_pthread_getattr_np(x64emu_t* emu, pthread_t thread_id, pthread_attr_t* attr)
+{
+	PTHREAD_ATTR_ALIGN(attr);
+	int ret = pthread_getattr_np(thread_id, PTHREAD_ATTR(attr));
+	PTHREAD_ATTR_UNALIGN(attr);
+	if(!ret && thread_id==pthread_self()) {
+		if(!emu->context->stacksizes) {
+			emu->context->stacksizes = kh_init(threadstack);
+		}
+		void* stack = emu->init_stack;
+		size_t sz = emu->size_stack;
+		if (!sz)
+			sz = 2*1024*1024;
+		AddStackSize((uintptr_t)attr, stack, sz);
+	}
+	return ret;
+}
+EXPORT int my_pthread_getattr_default_np(x64emu_t* emu, pthread_attr_t* attr)
+{
+	(void)emu;
+	PTHREAD_ATTR_ALIGN(attr);
+	int ret = pthread_attr_init(PTHREAD_ATTR(attr));
+	if(!ret)
+		ret = pthread_attr_setstacksize(PTHREAD_ATTR(attr), 2*1024*1024);
+	PTHREAD_ATTR_UNALIGN(attr);
+	return ret;
+}
+EXPORT int my_pthread_setattr_default_np(x64emu_t* emu, pthread_attr_t* attr)
+{
+	(void)emu; (void)attr;
+	return 0;
+}
 #endif	//!ANDROID
 #endif
 
@@ -1171,6 +1205,58 @@ EXPORT int my_pthread_mutex_init(pthread_mutex_t *m, my_mutexattr_t *att)
 	return ret;
 }
 EXPORT int my___pthread_mutex_init(pthread_mutex_t *m, my_mutexattr_t *att) __attribute__((alias("my_pthread_mutex_init")));
+
+#ifdef ANDROID
+// glibc static initializers (PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, used by std::recursive_mutex)
+// leave the bionic state word at 0 and put the kind in __kind (offset 16). bionic keeps the type
+// in bits 14-15 of the 16-bit state word, so such a mutex would act as a normal one and deadlock
+// on recursion. On first use (state still 0) move the kind into the state word; offset 16 is a
+// reserved area for bionic and is cleared so the conversion happens only once.
+static void convert_glibc_mutex(void* m)
+{
+	int* kind = (int*)((uintptr_t)m + 16);
+	int k = __atomic_load_n(kind, __ATOMIC_RELAXED);
+	if(!k)
+		return;
+	uint16_t bits = 0;
+	switch(k & 3) {
+		case 1: bits = 1<<14; break;	// recursive
+		case 2: bits = 2<<14; break;	// errorcheck
+		default: bits = 0; break;	// timed/adaptive -> normal
+	}
+	uint16_t expected = 0;
+	if(bits)
+		__atomic_compare_exchange_n((uint16_t*)m, &expected, bits, 0, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED);
+	__atomic_store_n(kind, 0, __ATOMIC_RELAXED);
+}
+EXPORT int my_pthread_mutex_lock(x64emu_t* emu, pthread_mutex_t* m)
+{
+	(void)emu;
+	convert_glibc_mutex(m);
+	return pthread_mutex_lock(m);
+}
+EXPORT int my___pthread_mutex_lock(x64emu_t* emu, pthread_mutex_t* m) __attribute__((alias("my_pthread_mutex_lock")));
+EXPORT int my_pthread_mutex_trylock(x64emu_t* emu, pthread_mutex_t* m)
+{
+	(void)emu;
+	convert_glibc_mutex(m);
+	return pthread_mutex_trylock(m);
+}
+EXPORT int my___pthread_mutex_trylock(x64emu_t* emu, pthread_mutex_t* m) __attribute__((alias("my_pthread_mutex_trylock")));
+EXPORT int my_pthread_mutex_timedlock(x64emu_t* emu, pthread_mutex_t* m, const struct timespec* t)
+{
+	(void)emu;
+	convert_glibc_mutex(m);
+	return pthread_mutex_timedlock(m, t);
+}
+EXPORT int my_pthread_mutex_unlock(x64emu_t* emu, pthread_mutex_t* m)
+{
+	(void)emu;
+	convert_glibc_mutex(m);
+	return pthread_mutex_unlock(m);
+}
+EXPORT int my___pthread_mutex_unlock(x64emu_t* emu, pthread_mutex_t* m) __attribute__((alias("my_pthread_mutex_unlock")));
+#endif
 
 #define THRD_SUCCESS	0
 #define THRD_BUSY		1

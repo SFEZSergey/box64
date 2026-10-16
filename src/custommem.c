@@ -3503,3 +3503,35 @@ EXPORT int box_munmap(void* addr, size_t length)
     int ret = InternalMunmap(addr, length);
     return ret;
 }
+
+#ifdef DYNAREC
+// For external samplers (AnyPS5 APK profiler): x86 start address of the dynablock containing a
+// native code address, or NULL when the address is not in translated code.
+EXPORT void* box64_native_to_x64(void* p)
+{
+    if(!rbt_dynmem)
+        return NULL;    // box64 is not initialised yet
+    dynablock_t* db = FindDynablockFromNativeAddress(p);
+    return db ? db->x64_addr : NULL;
+}
+#endif
+
+// For the AnyPS5 write watch (native SIGSEGV handler in front of box64's): does box64 keep this
+// page write-protected itself to catch self-modifying code? Lock-free read: callable from a handler.
+EXPORT int box64_page_has_code(uintptr_t addr)
+{
+    if(!memprot)
+        return 0;
+    return (rb_get(memprot, addr) & (PROT_DYNAREC | PROT_DYNAREC_R)) ? 1 : 0;
+}
+
+#ifdef DYNAREC
+// AnyPS5 APK: Android kills the app instead of letting box64 exit, so the DynaCache, written only at
+// exit, never reached the disk. The host saves it periodically (SerializeAllMapping takes the dynarec
+// dump lock, so translation just waits while the cache is written).
+void SerializeAllMapping(void);
+EXPORT void box64_save_dynacache(void)
+{
+    SerializeAllMapping();
+}
+#endif

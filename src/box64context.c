@@ -217,7 +217,16 @@ box64context_t *NewBox64Context(int argc)
     context->exit_bridge = AddBridge(context->system, NULL, NULL, 0, NULL);
     // get handle to box64 itself
     #ifndef STATICBUILD
-    context->box64lib = dlopen(NULL, RTLD_NOW|RTLD_GLOBAL);
+    {
+        // box64 may be a shared library (libbox64.so inside an Android app, called through
+        // box64_main): open the module that holds this code, the main program otherwise.
+        Dl_info self = {0};
+        context->box64lib = NULL;
+        if (dladdr((void*)&NewBox64Context, &self) && self.dli_fname)
+            context->box64lib = dlopen(self.dli_fname, RTLD_NOW|RTLD_NOLOAD);
+        if (!context->box64lib)
+            context->box64lib = dlopen(NULL, RTLD_NOW|RTLD_GLOBAL);
+    }
     #endif
     context->dlprivate = NewDLPrivate();
 

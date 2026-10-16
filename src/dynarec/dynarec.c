@@ -208,7 +208,10 @@ void EmuRun(x64emu_t* emu, int use_dynarec, int no_alt)
             #endif
             emu->flags.jmpbuf_ready = 1;
             #ifdef ANDROID
-            if ((skip = SigSetJmp(*(JUMPBUFF*)emu->jmpbuf, 1)))
+            // AnyPS5: every native->x86 call (RunFunction) enters here, and saving the signal mask
+            // made each one a sigprocmask syscall (~a quarter of the GPU driver thread). The mask is
+            // restored by the one siglongjmp into this buffer instead (signals.c, from the ucontext).
+            if ((skip = SigSetJmp(*(JUMPBUFF*)emu->jmpbuf, 0)))
             #else
             if ((skip = SigSetJmp(emu->jmpbuf, 1)))
             #endif

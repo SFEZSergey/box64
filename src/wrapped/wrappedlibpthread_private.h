@@ -214,14 +214,25 @@ GO(pthread_mutex_init, iFpp)
 GOM(__pthread_mutex_init, iFpp)
 GOM(pthread_mutex_init, iFpp)
 #endif
+#ifdef ANDROID
+// bionic keeps the mutex type in the state word: glibc static initializers need converting
+GOM(__pthread_mutex_lock, iFEp)
+GOM(pthread_mutex_lock, iFEp)
+GOM(pthread_mutex_timedlock, iFEpp)
+GOM(__pthread_mutex_trylock, iFEp)
+GOM(pthread_mutex_trylock, iFEp)
+GOM(__pthread_mutex_unlock, iFEp)
+GOM(pthread_mutex_unlock, iFEp)
+#else
 GO(__pthread_mutex_lock, iFp)
 GO(pthread_mutex_lock, iFp)
-GO(pthread_mutex_setprioceiling, iFpip)
 GO(pthread_mutex_timedlock, iFpp)
 GO(__pthread_mutex_trylock, iFp)
 GO(pthread_mutex_trylock, iFp)
 GO(__pthread_mutex_unlock, iFp)
 GO(pthread_mutex_unlock, iFp)
+#endif
+GO(pthread_mutex_setprioceiling, iFpip)
 GOM(pthread_once, iFEpp)
 GOM(__pthread_once, iFEpp)
 GOM(__pthread_register_cancel, vFEp)
@@ -240,6 +251,8 @@ GO(__pthread_rwlock_rdlock, iFp)
 GO(pthread_rwlock_rdlock, iFp)
 GO(pthread_rwlock_timedrdlock, iFpp)
 GO(pthread_rwlock_timedwrlock, iFpp)
+GO(pthread_rwlock_clockrdlock, iFpip)
+GO(pthread_rwlock_clockwrlock, iFpip)
 //GO(__pthread_rwlock_tryrdlock, 
 GO(pthread_rwlock_tryrdlock, iFp)
 //GO(__pthread_rwlock_trywrlock, 

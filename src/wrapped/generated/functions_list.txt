@@ -3906,6 +3906,7 @@
 #() uFpuuuuuuupp
 #() uFpddpippppp
 #() uFpppppppppp
+#() UFEpUUUUUUUU
 #() UFbCuWCCuuCW
 #() UFbuwwWWuCuu
 #() UFbuuiiWWiiW
@@ -4063,6 +4064,7 @@
 #() iFpppppppppppp
 #() uFpuupppppuuuu
 #() uFpppppppppppp
+#() UFEpUUUUUUdddd
 #() UFbCuuWWwwCCup
 #() UFbuuuWWWWWWWW
 #() pFEpLiiuuLipii
@@ -4258,7 +4260,21 @@
 #() iFEpuvvppp -> iFEpuppp
 wrappedalure:
 wrappedalut:
+wrappedandroidshmem:
+wrappedandroidsupport:
 wrappedanl:
+wrappedaps5bridge:
+- pFv:
+  - aps5b_error
+  - aps5b_x86caller
+- pFp:
+  - aps5b_load
+- pFpp:
+  - aps5b_sym
+- UFpUUUUUUUU:
+  - aps5b_call
+- UFpUUUUUUdddd:
+  - aps5b_callfd
 wrappedatk:
 - vFp:
   - atk_focus_tracker_init
@@ -5468,6 +5484,7 @@ wrappedgtkx112:
 - pFpipppppppi:
   - gtk_toolbar_insert_element
 wrappedharfbuzzsubset:
+wrappediconv:
 wrappedicui18n64:
 wrappedicui18n66:
 wrappedicui18n67:
@@ -6428,6 +6445,9 @@ wrappedlibpthread:
 - iFu:
   - pthread_key_delete
 - iFp:
+  - __pthread_mutex_lock
+  - __pthread_mutex_trylock
+  - __pthread_mutex_unlock
   - __pthread_mutexattr_destroy
   - __pthread_mutexattr_init
   - pthread_attr_destroy
@@ -6443,6 +6463,9 @@ wrappedlibpthread:
   - pthread_condattr_destroy
   - pthread_condattr_init
   - pthread_getattr_default_np
+  - pthread_mutex_lock
+  - pthread_mutex_trylock
+  - pthread_mutex_unlock
   - pthread_mutexattr_destroy
   - pthread_mutexattr_init
   - pthread_setattr_default_np
@@ -6496,6 +6519,7 @@ wrappedlibpthread:
   - pthread_getattr_np
   - pthread_key_create
   - pthread_mutex_init
+  - pthread_mutex_timedlock
   - pthread_mutexattr_getkind_np
   - pthread_mutexattr_getprotocol
   - pthread_mutexattr_getrobust
@@ -7577,6 +7601,7 @@ wrappedtcmallocminimal:
 - pFpLiiil:
   - mmap
   - mmap64
+wrappedtermuxexec:
 wrappedudev0:
 wrappedudev1:
 - vFpp:

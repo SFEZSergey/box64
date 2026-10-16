@@ -1255,8 +1255,22 @@ int LoadNeededLibs(elfheader_t* h, lib_t *maplib, int local, int bindnow, int de
         my_context->neededlibs = h->needed;
     int j=0;
     for (size_t i=0; i<h->numDynamic; ++i)
-        if((box64_is32bits?h->Dynamic._32[i].d_tag:h->Dynamic._64[i].d_tag)==DT_NEEDED)
-            h->needed->names[j++] = h->DynStrTab+h->delta+(box64_is32bits?h->Dynamic._32[i].d_un.d_val:h->Dynamic._64[i].d_un.d_val);
+        if((box64_is32bits?h->Dynamic._32[i].d_tag:h->Dynamic._64[i].d_tag)==DT_NEEDED) {
+            char* name = h->DynStrTab+h->delta+(box64_is32bits?h->Dynamic._32[i].d_un.d_val:h->Dynamic._64[i].d_un.d_val);
+            // glibc expands $ORIGIN in DT_NEEDED too, not only in RPATH/RUNPATH
+            const char* token = !strncmp(name, "${ORIGIN}", 9)?"${ORIGIN}":(!strncmp(name, "$ORIGIN", 7)?"$ORIGIN":NULL);
+            if(token && h->path) {
+                char* origin = box_strdup(h->path);
+                char* p = strrchr(origin, '/');
+                if(p) *p = '\0';    // remove file name to have only full path, without last '/'
+                char* tmp = (char*)box_calloc(1, strlen(name)-strlen(token)+strlen(origin)+1);
+                strcpy(tmp, origin);
+                strcat(tmp, name+strlen(token));
+                box_free(origin);
+                name = tmp; // kept for the lifetime of the elf, like the string table
+            }
+            h->needed->names[j++] = name;
+        }
     #ifndef ANDROID
     if(box64_is32bits && strstr(h->name, "lsteamclient.dll.so"))
         h->needed->names[j++] = "libgcc_s.so.1";
@@ -1789,6 +1803,11 @@ typedef struct my_dl_phdr_info_s {
     const char*     dlpi_name;
     Elf64_Phdr*     dlpi_phdr;
     Elf64_Half      dlpi_phnum;
+    // glibc fields after dlpi_phnum: callers read them when size allows
+    unsigned long long dlpi_adds;
+    unsigned long long dlpi_subs;
+    size_t          dlpi_tls_modid;
+    void*           dlpi_tls_data;
 } my_dl_phdr_info_t;
 
 static int dl_iterate_phdr_callback(x64emu_t *emu, void* F, my_dl_phdr_info_t *info, size_t size, void* data)
@@ -1842,6 +1861,30 @@ EXPORT int my32_dl_iterate_phdr(x64emu_t *emu, void* F, void *data)
 #endif
 EXPORT int my_dl_iterate_phdr(x64emu_t *emu, void* F, void *data) {
     if(box64_is32bits) return my32_dl_iterate_phdr(emu, F, data);
+    #if defined(ANDROID) || defined(TERMUX)
+    {
+        // BOX64_TRACE_DLITERATE=1: who walks the modules (x86 callback and caller), every 256 calls.
+        static int trace = -1;
+        if(trace < 0) { const char* v = getenv("BOX64_TRACE_DLITERATE"); trace = v && v[0]=='1'; }
+        if(trace) {
+            static uint64_t calls = 0;
+            if(!(calls++ & 255))
+                printf_log(LOG_NONE, "[dl_iterate_phdr] call %llu callback=%p caller=%p\n", (unsigned long long)calls, F, (void*)*(uint64_t*)R_RSP);
+        }
+    }
+    #endif
+    #if defined(ANDROID) || defined(TERMUX)
+    {
+        // BOX64_TRACE_DLITERATE=1: who walks the modules (x86 callback and caller), every 256 calls.
+        static int trace = -1;
+        if(trace < 0) { const char* v = getenv("BOX64_TRACE_DLITERATE"); trace = v && v[0]=='1'; }
+        if(trace) {
+            static uint64_t calls = 0;
+            if(!(calls++ & 255))
+                printf_log(LOG_NONE, "[dl_iterate_phdr] call %llu callback=%p caller=%p\n", (unsigned long long)calls, F, (void*)*(uint64_t*)R_RSP);
+        }
+    }
+    #endif
     printf_log(LOG_DEBUG, "Call to partially implemented dl_iterate_phdr(%p, %p)\n", F, data);
     box64context_t *context = GetEmuContext(emu);
     const char* empty = "";
@@ -1853,11 +1896,36 @@ EXPORT int my_dl_iterate_phdr(x64emu_t *emu, void* F, void *data) {
             info.dlpi_name = idx?context->elfs[idx]->name:empty;    //1st elf is program, and this one doesn't get a name
             info.dlpi_phdr = context->elfs[idx]->PHEntries._64;
             info.dlpi_phnum = context->elfs[idx]->numPHEntries;
+            info.dlpi_adds = context->elfsize;
+            info.dlpi_subs = 0;
+            // module id as used by R_X86_64_DTPMOD64 and __tls_get_addr: the elf index
+            info.dlpi_tls_modid = context->elfs[idx]->tlssize ? (size_t)idx : 0;
+            info.dlpi_tls_data = NULL;
+            if(context->elfs[idx]->tlssize) {
+                tlsdatasize_t* ptr = emu->tlsdata;
+                if(!ptr || ptr->tlssize != context->tlssize || ptr->n_elfs != context->elfsize) {
+                    refreshTLSData(emu);
+                    ptr = emu->tlsdata;
+                }
+                if(ptr) info.dlpi_tls_data = ptr->data + GetTLSBase(context->elfs[idx]);
+            }
             if((ret = dl_iterate_phdr_callback(emu, F, &info, sizeof(info), data))) {
                 return ret;
             }
         }
     }
+    #if defined(ANDROID) || defined(TERMUX)
+    // AnyPS5 APK: an Android process maps hundreds of native libraries (framework, ART, graphics);
+    // x86 callbacks (the game's module lookups, which parse each entry) have no use for them and
+    // took a whole thread at startup. BOX64_DL_ITERATE_NATIVE=1 restores the native walk.
+    static int native_walk = -1;
+    if(native_walk < 0) {
+        const char* value = getenv("BOX64_DL_ITERATE_NATIVE");
+        native_walk = value && value[0] == '1';
+    }
+    if(!native_walk)
+        return ret;
+    #endif
     // and now, go on native version
     ret = dl_iterate_phdr(find_dl_iterate_phdr_Fct(F), data);
     return ret;
@@ -1935,13 +2003,19 @@ void CreateMemorymapFile(box64context_t* context, int fd)
         uintptr_t start, end;
         if (sscanf(line, "%zx-%zx", &start, &end)==2) {
             elfheader_t* h = FindElfAddress(my_context, start);
+            // getline keeps the '\n': drop it so the name lands on the same line
             int l = strlen(line);
+            int eol = (l && line[l-1]=='\n');
+            if(eol) line[--l] = '\0';
             if(h && l<73) {
-                sprintf(buff, "%s%*s\n", line, 74-l, h->name);
+                snprintf(buff, sizeof(buff), "%s%*s\n", line, 74-l, h->name);
                 dummy = write(fd, buff, strlen(buff));
             } else if(start==(uintptr_t)my_context->stack) {
-                sprintf(buff, "%s%*s\n", line, 74-l, "[stack]");
+                snprintf(buff, sizeof(buff), "%s%*s\n", line, 74-l, "[stack]");
                 dummy = write(fd, buff, strlen(buff));
+            } else if(eol && !strstr(line, "[stack]")) {
+                line[l++] = '\n';   // untouched line: give its newline back
+                dummy = write(fd, line, l);
             } else if (strstr(line, "[stack]")) {
                 char* p = strstr(line, "[stack]")-1;
                 while (*p==' ' || *p=='\t') --p;

@@ -26,6 +26,13 @@ static uintptr_t* auxval_start = NULL;
 int init_auxval(int argc, const char **argv, char **env) {
     (void)argc; (void)argv;
 
+    // In the embedded Android build the shared library constructor receives
+    // the process startup environment, immediately followed by the auxv. The
+    // later box64_main() call receives environ, which is only the environment
+    // array and is not followed by auxv. Keep the startup vector in that case.
+    if (auxval_start)
+        return 0;
+
     // auxval vector is after envs...
     while(*env)
         env++;

@@ -465,6 +465,7 @@ set(ELFLOADER_SRC
     "${BOX64_ROOT}/src/emu/x64trace.c"
     "${BOX64_ROOT}/src/librarian/librarian.c"
     "${BOX64_ROOT}/src/librarian/library.c"
+    "${BOX64_ROOT}/src/libtools/androidglibc.c"
     "${BOX64_ROOT}/src/librarian/dictionnary.c"
     "${BOX64_ROOT}/src/librarian/symbols.c"
     "${BOX64_ROOT}/src/libtools/auxval.c"
@@ -718,6 +719,7 @@ set(WRAPPEDS
     "${BOX64_ROOT}/src/wrapped/wrappedlibtinfo6.c"
     "${BOX64_ROOT}/src/wrapped/wrappedlibusb1.c"
     "${BOX64_ROOT}/src/wrapped/wrappedlibuuid.c"
+    "${BOX64_ROOT}/src/wrapped/wrappedaps5bridge.c"
     "${BOX64_ROOT}/src/wrapped/wrappedlibva.c"
     "${BOX64_ROOT}/src/wrapped/wrappedlibvadrm.c"
     "${BOX64_ROOT}/src/wrapped/wrappedlibvawayland.c"
@@ -1349,6 +1351,25 @@ add_library(mainobj OBJECT ${OS_LINUX_SRC} ${ELFLOADER_SRC} ${WRAPPEDS} ${WRAPPE
 add_dependencies(mainobj generate_git_head_target)
 add_dependencies(mainobj generate_dynacache_hashes)
 
+# BOX64_SHARED_LIB: also build libbox64.so (box64_main) for embedding in an Android app.
+option(BOX64_SHARED_LIB "Also build box64 as a shared library exposing box64_main" OFF)
+if(BOX64_SHARED_LIB)
+    # The embedded Android library must capture the process auxv in its
+    # constructor; box64_main receives only environ from the JNI wrapper.
+    add_compile_definitions(BUILD_LIB)
+    add_library(box64lib SHARED)
+    target_link_libraries(box64lib mainobj interpreter)
+    if(DYNAREC)
+        target_link_libraries(box64lib dynarec)
+    endif()
+    if(TERMUX)
+        target_link_libraries(box64lib c m dl android-sysv-semaphore)
+    else()
+        target_link_libraries(box64lib c m dl)
+    endif()
+    set_target_properties(box64lib PROPERTIES OUTPUT_NAME box64)
+    add_dependencies(box64lib WRAPPERS)
+endif()
 if(NOT NOBOX64)
     add_executable(${BOX64})
     target_link_libraries(${BOX64} mainobj)

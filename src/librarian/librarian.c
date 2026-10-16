@@ -13,6 +13,7 @@
 #include "x64emu.h"
 #include "box64context.h"
 #include "elfloader.h"
+#include "fileutils.h"
 #ifdef BOX32
 #include "box32.h"
 #endif
@@ -245,6 +246,32 @@ static int AddNeededLib_add(lib_t** maplib, int local, needed_libs_t* needed, in
             promoteLocalLibGlobal(lib);
         }
         return 0;
+    }
+    // a bare name can be another name (a symlink...) of a file that is already loaded:
+    // like glibc, reuse that object instead of loading a second copy of the same file
+    if(!strchr(path, '/')) {
+        char* full = NULL;
+        if(needed->rpath && needed->rpath->size)
+            full = ResolveFile(path, needed->rpath);
+        if((!full || !strchr(full, '/') || !FileExist(full, IS_FILE)) && box64->box64_ld_lib.size) {
+            if(full) box_free(full);
+            full = ResolveFile(path, &box64->box64_ld_lib);
+        }
+        if(full && strchr(full, '/') && FileExist(full, IS_FILE)) {
+            lib = getLib(my_context->maplib, full);
+            if(!lib)
+                lib = getLib(my_context->local_maplib, full);
+        }
+        if(full)
+            box_free(full);
+        if(lib) {
+            IncRefCount(lib, emu);
+            needed->libs[n] = lib;
+            if(local && *maplib)
+                MapLibAddLib(*maplib, lib);
+            printf_dump(LOG_DEBUG, "Same file as already loaded \"%s\" => success\n", lib->name);
+            return 0;
+        }
     }
     // load a new one
     needed->libs[n] = lib = NewLibrary(path, box64, verneeded, needed->rpath);

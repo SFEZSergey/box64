@@ -658,6 +658,16 @@ int my_sigactionhandler_oldcode_64(x64emu_t* emu, int32_t sig, int simple, sigin
             #endif
             cancel_deferred_signal_processing(emu);
             #ifdef ANDROID
+            // EmuRun's sigsetjmp does not save the mask (see dynarec.c): restore the thread's mask from
+            // before this signal, as a mask-saving siglongjmp would have.
+            if(ucntx) {
+                pthread_sigmask(SIG_SETMASK, &((ucontext_t*)ucntx)->uc_sigmask, NULL);
+            } else {
+                sigset_t unblock;
+                sigemptyset(&unblock);
+                sigaddset(&unblock, sig);
+                pthread_sigmask(SIG_UNBLOCK, &unblock, NULL);
+            }
             siglongjmp(*emu->jmpbuf, skip);
             #else
             siglongjmp(emu->jmpbuf, skip);

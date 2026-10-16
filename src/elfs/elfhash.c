@@ -394,6 +394,9 @@ Elf64_Sym* ElfLookup64(elfheader_t* h, const char* symname, int ver, const char*
 {
     if(h->gnu_hash)
         return new_elf_lookup(h, symname, ver, vername, local, veropt);
+    // no hash table at all: like glibc, nothing can be looked up in this object
+    if(!h->hash)
+        return NULL;
     return old_elf_lookup(h, symname, ver, vername, local, veropt);
 }
 

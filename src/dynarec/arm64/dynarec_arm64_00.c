@@ -2133,11 +2133,10 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
             case 2:
                 if(rex.rep==1) {INST_NAME("REPNZ CMPSB");} else {INST_NAME("REPZ CMPSB");}
-                if(BOX64DRENV(dynarec_safeflags)>1) {
-                    READFLAGS(X_ALL);
-                    SETFLAGS(X_ALL, SF_SET_NODF);
-                } else
-                    SETFLAGS(X_ALL, SF_SET_PENDING);
+                // With RCX==0 nothing is compared and the flags are left untouched
+                // (BSD-style bcmp relies on it), so the previous flags stay live.
+                READFLAGS(X_ALL);
+                SETFLAGS(X_ALL, SF_SET_NODF);
                 SMREAD();
                 CBZx_NEXT(xRCX);
                 if(rex.is67 && !rex.is32bits) {
@@ -2186,11 +2185,10 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
             case 2:
                 if(rex.rep==1) {INST_NAME("REPNZ CMPSD");} else {INST_NAME("REPZ CMPSD");}
-                if(BOX64DRENV(dynarec_safeflags)>1) {
-                    READFLAGS(X_ALL);
-                    SETFLAGS(X_ALL, SF_SET_NODF);
-                } else
-                    SETFLAGS(X_ALL, SF_SET_PENDING);
+                // With RCX==0 nothing is compared and the flags are left untouched
+                // (BSD-style bcmp relies on it), so the previous flags stay live.
+                READFLAGS(X_ALL);
+                SETFLAGS(X_ALL, SF_SET_NODF);
                 SMREAD();
                 CBZx_NEXT(xRCX);
                 if(rex.is67 && !rex.is32bits) {
@@ -2387,11 +2385,10 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
             case 2:
                 if(rex.rep==1) {INST_NAME("REPNZ SCASB");} else {INST_NAME("REPZ SCASB");}
-                if(BOX64DRENV(dynarec_safeflags)>1) {
-                    READFLAGS(X_ALL);
-                    SETFLAGS(X_ALL, SF_SET_NODF);
-                } else
-                    SETFLAGS(X_ALL, SF_SET_PENDING);
+                // With RCX==0 nothing is compared and the flags are left untouched
+                // (BSD-style bcmp relies on it), so the previous flags stay live.
+                READFLAGS(X_ALL);
+                SETFLAGS(X_ALL, SF_SET_NODF);
                 SMREAD();
                 CBZx_NEXT(xRCX);
                 if(rex.is67 && !rex.is32bits) {
@@ -2435,11 +2432,10 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
             case 2:
                 if(rex.rep==1) {INST_NAME("REPNZ SCASD");} else {INST_NAME("REPZ SCASD");}
-                if(BOX64DRENV(dynarec_safeflags)>1) {
-                    READFLAGS(X_ALL);
-                    SETFLAGS(X_ALL, SF_SET_NODF);
-                } else
-                    SETFLAGS(X_ALL, SF_SET_PENDING);
+                // With RCX==0 nothing is compared and the flags are left untouched
+                // (BSD-style bcmp relies on it), so the previous flags stay live.
+                READFLAGS(X_ALL);
+                SETFLAGS(X_ALL, SF_SET_NODF);
                 SMREAD();
                 CBZx_NEXT(xRCX);
                 if(rex.is67 && !rex.is32bits) {

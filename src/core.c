@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+int box64_main(int argc, const char **argv, char **env);
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1060,6 +1062,14 @@ int initialize(int argc, const char **argv, char** env, x64emu_t** emulator, elf
         AddPath("libwayland-client.so.0", &my_context->box64_emulated_libs, 0);
 
     my_context->box64path = ResolveFile(argv[0], &my_context->box64_path);
+    if (!my_context->box64path) {
+        // Embedded (libbox64.so via box64_main): argv[0] is not a file, use this module's path.
+        Dl_info self = {0};
+        if (dladdr((void*)&box64_main, &self) && self.dli_fname)
+            my_context->box64path = box_strdup(self.dli_fname);
+        else
+            my_context->box64path = box_strdup("box64");
+    }
     // prepare all other env. var
     my_context->envc = CountEnv(environ?environ:env);
     printf_log(LOG_INFO, "Counted %d Env var\n", my_context->envc);
