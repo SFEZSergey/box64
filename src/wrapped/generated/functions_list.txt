@@ -4270,6 +4270,7 @@ wrappedaps5bridge:
 - pFp:
   - aps5b_load
 - pFpp:
+  - aps5b_hotpatch
   - aps5b_sym
 - UFpUUUUUUUU:
   - aps5b_call

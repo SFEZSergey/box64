@@ -22,6 +22,7 @@ typedef uint64_t (*UFpUUUUUUdddd_t)(void*, uint64_t, uint64_t, uint64_t, uint64_
 	GO(aps5b_error, pFv_t) \
 	GO(aps5b_x86caller, pFv_t) \
 	GO(aps5b_load, pFp_t) \
+	GO(aps5b_hotpatch, pFpp_t) \
 	GO(aps5b_sym, pFpp_t) \
 	GO(aps5b_call, UFpUUUUUUUU_t) \
 	GO(aps5b_callfd, UFpUUUUUUdddd_t)
